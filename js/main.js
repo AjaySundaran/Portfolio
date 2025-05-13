@@ -29,52 +29,63 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 window.addEventListener('load', () => {
   const synth = window.speechSynthesis;
 
-  function speakIntroWithVoice(voice) {
+  function speakIntro() {
+    if (!synth) return;
+
+    // Wait for voices to be loaded
+    let voices = synth.getVoices();
+    if (voices.length === 0) {
+      // Voices aren't available yet, so we try again after a short delay
+      setTimeout(speakIntro, 100);
+      return;
+    }
+
+    // Log available voices to the console (optional)
+    console.log("Available voices:");
+    voices.forEach((voice, index) => {
+      console.log(`${index + 1}: ${voice.name} (${voice.lang})`);
+    });
+
+    // Find the "Google UK English Female (en-GB)" voice
+    const ukEnglishFemale = voices.find(v => v.name === "Google UK English Female" && v.lang === "en-GB");
+
+    if (!ukEnglishFemale) {
+      console.log("Google UK English Female voice not found!");
+      return; // Exit if the desired voice is not found
+    }
+
     const now = new Date();
     const hour = now.getHours();
-    let greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    let greeting;
+
+    if (hour < 12) greeting = "Good morning";
+    else if (hour < 18) greeting = "Good afternoon";
+    else greeting = "Good evening";
 
     const intro = `${greeting}. Welcome to Aajay Sundaran's aerospace portfolio. Discover innovations in vtol design, UAV development, and advanced flight systems.`;
 
     const utterance = new SpeechSynthesisUtterance(intro);
-    utterance.voice = voice;
+    utterance.voice = ukEnglishFemale; // Use the desired voice
     utterance.rate = 1;
     utterance.pitch = 1.2;
     synth.speak(utterance);
   }
 
-  function waitForVoices(retries = 20) {
-    const interval = setInterval(() => {
-      const voices = synth.getVoices();
-      if (voices.length !== 0) {
-        clearInterval(interval);
-
-        console.log("Voices loaded:", voices.map(v => `${v.name} (${v.lang})`));
-
-        const ukVoice = voices.find(v => v.name === "Google UK English Female" && v.lang === "en-GB");
-        speakIntroWithVoice(ukVoice || voices[0]);  // fallback to first voice if not found
-      } else if (--retries === 0) {
-        clearInterval(interval);
-        console.warn("Could not load speech synthesis voices.");
+  // If the voices are not available yet, wait for them to load
+  if (synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = speakIntro;
+  } else {
+    // Ensure that voices are fully loaded before speaking
+    setTimeout(() => {
+      let voices = synth.getVoices();
+      if (voices.length > 0) {
+        speakIntro();
+      } else {
+        setTimeout(() => speakIntro(), 2000); // Retry if voices are still unavailable
       }
-    }, 200);
+    }, 100);
   }
-
-  waitForVoices();
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -95,4 +106,3 @@ window.addEventListener('load', () => {
   // Jump instantly to top-left of the document
   window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
 });
-
