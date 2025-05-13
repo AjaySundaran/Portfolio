@@ -27,65 +27,54 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 
 // 2. Text-to-Speech Intro
 window.addEventListener('load', () => {
-  const synth = window.speechSynthesis;
+      const synth = window.speechSynthesis;
 
-  function speakIntro() {
-    if (!synth) return;
+      function speakIntro(voice) {
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-    // Wait for voices to be loaded
-    let voices = synth.getVoices();
-    if (voices.length === 0) {
-      // Voices aren't available yet, so we try again after a short delay
-      setTimeout(speakIntro, 100);
-      return;
-    }
+        const text = `${greeting}. Welcome to Ajay Sundaran's aerospace portfolio. Discover innovations in VTOL design, UAV development, and advanced flight systems.`;
 
-    // Log available voices to the console (optional)
-    console.log("Available voices:");
-    voices.forEach((voice, index) => {
-      console.log(`${index + 1}: ${voice.name} (${voice.lang})`);
-    });
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.voice = voice;
+        utter.rate = 1;
+        utter.pitch = 1.2;
 
-    // Find the "Google UK English Female (en-GB)" voice
-    const ukEnglishFemale = voices.find(v => v.name === "Google UK English Female" && v.lang === "en-GB");
-
-    if (!ukEnglishFemale) {
-      console.log("Google UK English Female voice not found!");
-      return; // Exit if the desired voice is not found
-    }
-
-    const now = new Date();
-    const hour = now.getHours();
-    let greeting;
-
-    if (hour < 12) greeting = "Good morning";
-    else if (hour < 18) greeting = "Good afternoon";
-    else greeting = "Good evening";
-
-    const intro = `${greeting}. Welcome to Aajay Sundaran's aerospace portfolio. Discover innovations in vtol design, UAV development, and advanced flight systems.`;
-
-    const utterance = new SpeechSynthesisUtterance(intro);
-    utterance.voice = ukEnglishFemale; // Use the desired voice
-    utterance.rate = 1;
-    utterance.pitch = 1.2;
-    synth.speak(utterance);
-  }
-
-  // If the voices are not available yet, wait for them to load
-  if (synth.onvoiceschanged !== undefined) {
-    synth.onvoiceschanged = speakIntro;
-  } else {
-    // Ensure that voices are fully loaded before speaking
-    setTimeout(() => {
-      let voices = synth.getVoices();
-      if (voices.length > 0) {
-        speakIntro();
-      } else {
-        setTimeout(() => speakIntro(), 2000); // Retry if voices are still unavailable
+        synth.cancel();  // Cancel any queued speech
+        synth.speak(utter);
       }
-    }, 100);
-  }
-});
+
+      function trySpeak() {
+        const voices = synth.getVoices();
+        if (voices.length === 0) {
+          // Retry until voices load (max 20 tries)
+          if (window.__tryCount === undefined) window.__tryCount = 0;
+          if (window.__tryCount++ < 20) {
+            return setTimeout(trySpeak, 200);
+          } else {
+            console.warn("No voices loaded.");
+            return;
+          }
+        }
+
+        console.log("Voices loaded:");
+        voices.forEach(v => console.log(`${v.name} (${v.lang})`));
+
+        const preferred = voices.find(v => v.name === "Google UK English Female" && v.lang === "en-GB");
+        const fallback = voices.find(v => v.lang.startsWith("en")) || voices[0];
+
+        speakIntro(preferred || fallback);
+      }
+
+      // If voices are already available
+      if (synth.getVoices().length > 0) {
+        trySpeak();
+      } else {
+        synth.onvoiceschanged = trySpeak;
+        // Also trigger manually in case event doesn't fire
+        setTimeout(trySpeak, 100);
+      }
+    });
 
 
 window.addEventListener("DOMContentLoaded", () => {
